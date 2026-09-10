@@ -12,6 +12,7 @@ import numpy as np
 import xarray as xr
 from xgcm import Grid
 
+from ocean_preprocessing.grid_metrics import rectilinear_grid_metrics
 from ocean_preprocessing.schema import OM4_3D_VARS
 from ocean_preprocessing.utils import split_2d_3d
 
@@ -304,6 +305,12 @@ def horizontal_regrid(ds, ds_target):
     r_earth = 6356  # in km
     new_area = xe.util.cell_area(ds_target, r_earth) * 1e6
 
+    # The native `dx`/`dy` describe the source cells and mean nothing once the
+    # data lands on the target grid, so they are recomputed here rather than
+    # remapped, exactly as the area is. The target is rectilinear, which is the
+    # one case where deriving from the cell bounds is correct.
+    new_metrics = rectilinear_grid_metrics(ds_target, radius_m=r_earth * 1e3)
+
     ## calculate the wetmask afterwards...
     wetmask = ~np.isnan(ds_regridded.thetao.isel(time=0).drop_vars("time"))
     ocean_frac = regridder(ds.wetmask.astype("float64")).fillna(0.0)
@@ -319,6 +326,7 @@ def horizontal_regrid(ds, ds_target):
         y=y,
         wetmask=wetmask,
         ocean_fraction=ocean_frac,
+        **new_metrics,
     )
     ds_regridded.attrs = ds.attrs | ds_regridded.attrs
 
@@ -402,6 +410,8 @@ def flatten_by_depth_level(ds: xr.Dataset) -> xr.Dataset:
         "lon_b",
         "lat_b",
         "areacello",
+        "dx",
+        "dy",
         "ocean_fraction",
         "dz",
         "lev",

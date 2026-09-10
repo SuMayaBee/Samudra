@@ -117,6 +117,18 @@ def _validate_common_input_contract(ds_input: xr.Dataset) -> None:
                 f"{ds_input[coord].dims}; expected {expected_dims}."
             )
 
+    # `dx`/`dy` are newer than the published stores. Preprocessing emits them so
+    # that cross-section diagnostics stop deriving cell widths from the
+    # coordinates, but every store written before that carries neither, and the
+    # analysis notebooks validate those. So check the shape when they are present
+    # rather than requiring them outright.
+    for metric in ("dx", "dy"):
+        if metric in ds_input.coords and ds_input[metric].dims != ("y", "x"):
+            raise ValueError(
+                f"Output coordinate {metric!r} has dimensions "
+                f"{ds_input[metric].dims}; expected ('y', 'x')."
+            )
+
     allowed_dz_dims = {("lev",), ("lev", "y", "x")}
     if ds_input.dz.dims not in allowed_dz_dims:
         raise ValueError(

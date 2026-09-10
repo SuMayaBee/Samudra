@@ -10,6 +10,7 @@ import xarray as xr
 from xgcm import Grid
 
 from ocean_preprocessing.dataset_validation import ds_processed_validate
+from ocean_preprocessing.grid_metrics import native_grid_metrics
 from ocean_preprocessing.schema import (
     OM4_3D_VARS,
     OM4_OPTIONAL_2D_VARS,
@@ -317,8 +318,15 @@ def om4_preprocessing(
     ds_grid = ds_grid.drop_vars("time", errors="ignore")
     ds_grid = ds_grid.set_coords([v for v in ds_grid.data_vars])
 
+    # `dx`/`dy` come from the model rather than from the coordinates. Differencing
+    # neighbouring cell centers describes the cell only while rows of the grid
+    # follow lines of constant latitude, which stops being true towards the
+    # tripolar fold. See `grid_metrics` for how far off that gets.
     ds = ds.assign_coords(
-        lon=ds_grid.geolon, lat=ds_grid.geolat, areacello=ds_grid.areacello
+        lon=ds_grid.geolon,
+        lat=ds_grid.geolat,
+        areacello=ds_grid.areacello,
+        **native_grid_metrics(ds_grid),
     )
 
     # drop (for now) all the coords on non-tracer position
@@ -331,6 +339,8 @@ def om4_preprocessing(
         "lev",
         "yh",
         "areacello",
+        "dx",
+        "dy",
         "wetmask",
         "dz",
     ]
@@ -356,8 +366,12 @@ def om4_preprocessing(
     if "time_bnds" in ds.data_vars:
         ds = ds.drop_vars(["time_bnds"])
     ds = ds.astype(np.float32)
-    # higher precision for the area
-    ds = ds.assign_coords(areacello=ds.areacello.astype("float64"))
+    # higher precision for the geometry
+    ds = ds.assign_coords(
+        areacello=ds.areacello.astype("float64"),
+        dx=ds.dx.astype("float64"),
+        dy=ds.dy.astype("float64"),
+    )
     if wfo_source_path is not None:
         ds.attrs.update(
             {

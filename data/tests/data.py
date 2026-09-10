@@ -66,6 +66,18 @@ def processed_data():
             ),
             dims=["y", "x"],
         ).astype("float64"),
+        "dx": xr.DataArray(
+            dsa.random.random(
+                (PROCESSED_Y_SIZE, PROCESSED_X_SIZE), chunks=PROCESSED_CHUNKS_2D
+            ),
+            dims=["y", "x"],
+        ).astype("float64"),
+        "dy": xr.DataArray(
+            dsa.random.random(
+                (PROCESSED_Y_SIZE, PROCESSED_X_SIZE), chunks=PROCESSED_CHUNKS_2D
+            ),
+            dims=["y", "x"],
+        ).astype("float64"),
         "dz": xr.DataArray(
             np.random.rand(
                 PROCESSED_LEVEL_SIZE,

@@ -27,6 +27,8 @@ ds_processed_coords_schema = CoordsSchema(
         "areacello": DataArraySchema(
             dtype="float64", shape=(1080, 1440), dims=["y", "x"]
         ),
+        "dx": DataArraySchema(dtype="float64", shape=(1080, 1440), dims=["y", "x"]),
+        "dy": DataArraySchema(dtype="float64", shape=(1080, 1440), dims=["y", "x"]),
         "dz": DataArraySchema(dtype="float64", shape=(19,), dims=["lev"]),
         "lev": DataArraySchema(dtype="float64", shape=(19,), dims=["lev"]),
         "ilev": DataArraySchema(dtype="float64", shape=(20,), dims=["ilev"]),

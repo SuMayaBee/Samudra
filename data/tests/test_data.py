@@ -86,6 +86,8 @@ def _flattened_input(*, include_wfo: bool = True) -> xr.Dataset:
             "lon_b": (("y_b", "x_b"), np.zeros((ny + 1, nx + 1))),
             "lat_b": (("y_b", "x_b"), np.zeros((ny + 1, nx + 1))),
             "areacello": (("y", "x"), np.ones((ny, nx))),
+            "dx": (("y", "x"), np.full((ny, nx), 1000.0)),
+            "dy": (("y", "x"), np.full((ny, nx), 2000.0)),
             "ocean_fraction": (
                 ("lev", "y", "x"),
                 np.ones((levels, ny, nx)),
@@ -141,6 +143,26 @@ def test_flattened_contract_rejects_unknown_grid_type():
     ds.attrs["grid_type"] = "cubed_sphere"
 
     with pytest.raises(ValueError, match="grid_type must be one of"):
+        ds_flattened_input_validate(ds)
+
+
+def test_flattened_contract_accepts_a_store_without_cell_metrics():
+    """Every store published before #809 carries neither `dx` nor `dy`.
+
+    The analysis notebooks validate those, so the contract must keep passing on
+    them rather than turning old data into an error.
+    """
+    ds = _flattened_input().drop_vars(["dx", "dy"])
+
+    ds_flattened_input_validate(ds)
+
+
+def test_flattened_contract_rejects_cell_metrics_on_the_wrong_dims():
+    """Metrics that are not on the horizontal grid cannot describe its cells."""
+    ds = _flattened_input()
+    ds = ds.assign_coords(dx=(("lev", "y", "x"), np.ones((2, 3, 4))))
+
+    with pytest.raises(ValueError, match="'dx' has dimensions"):
         ds_flattened_input_validate(ds)
 
 
