@@ -27,6 +27,11 @@ All datasets share the same layout: 4745 five-day timesteps, 19 depth levels, on
 (`grid_type = "gaussian"`) grid, with the grid-metadata coordinates needed for physical analysis
 (`areacello`, `dz`, `lev`, 2D `lat`/`lon`, and cell bounds `lat_b`/`lon_b`).
 
+Preprocessing also writes the horizontal cell metrics `dx` and `dy` (cell width and height in
+meters), which cross-section diagnostics such as AMOC need and which cannot be recovered from the
+coordinates on a curvilinear grid. The stores listed below were published before that and carry
+neither; anything reprocessed from now on will have both.
+
 | Directory | Resolution | Grid (y × x) | Spatial filter | Size |
 | --- | --- | --- | --- | --- |
 | `om4_twodeg/` | 2° | 90 × 180 | none | 23 GiB |

@@ -28,8 +28,8 @@ class _IdentityNormalize:
 
 def _source_coords(ny, nx):
     """Coords as `get_coords_dict` should be returned: 1D lat/lon dims,
-    plus the grid metadata that survives `with_lat_lon_coords` (areacello, dz,
-    lev, ocean_fraction)."""
+    plus the grid metadata that survives `with_lat_lon_coords` (areacello, dx,
+    dy, dz, lev, ocean_fraction)."""
     data_layout = TEST_FULL_DATA_LAYOUT
     n_lev = data_layout.num_prognostic_depth_levels
     lat = xr.DataArray(np.linspace(-89, 89, ny), dims="lat")
@@ -40,6 +40,8 @@ def _source_coords(ny, nx):
         "lev": xr.DataArray(list(data_layout.depth_levels), dims="lev"),
         "dz": xr.DataArray(list(data_layout.depth_thickness), dims="lev"),
         "areacello": xr.DataArray(np.ones((ny, nx)), dims=["lat", "lon"]),
+        "dx": xr.DataArray(np.full((ny, nx), 1000.0), dims=["lat", "lon"]),
+        "dy": xr.DataArray(np.full((ny, nx), 2000.0), dims=["lat", "lon"]),
         "ocean_fraction": xr.DataArray(
             np.ones((n_lev, ny, nx)), dims=["lev", "lat", "lon"]
         ),
@@ -96,7 +98,12 @@ def test_writer_output_is_analysis_ready(tmp_path):
     np.testing.assert_array_equal(out["dz"].values, data_layout.depth_thickness)
     assert out["areacello"].dims == ("y", "x")
     assert out["ocean_fraction"].dims == ("lev", "y", "x")
-    # cell bounds propagate unchanged (enables dx/dy in analysis).
+    # Cell widths reach analysis as the source gave them, rather than being
+    # re-derived from the bounds downstream, which is wrong on a folded grid.
+    assert out["dx"].dims == ("y", "x") and out["dy"].dims == ("y", "x")
+    np.testing.assert_array_equal(out["dx"].values, np.full((ny, nx), 1000.0))
+    np.testing.assert_array_equal(out["dy"].values, np.full((ny, nx), 2000.0))
+    # cell bounds propagate unchanged.
     assert out["lat_b"].dims == ("y_b", "x_b")
     assert out["lon_b"].dims == ("y_b", "x_b")
 
@@ -183,6 +190,11 @@ def test_tripolar_om4_canonicalization_preserves_writer_geometry(tmp_path):
     x = np.linspace(0, 270, nx)
     lat2d = y[:, None] + 0.1 * x[None, :]
     lon2d = x[None, :] + 0.1 * y[:, None]
+    # Cell widths that vary along both dims, as they do near the fold. Nothing
+    # downstream could reconstruct these from the 1-D axes, so if they come back
+    # intact they were carried rather than re-derived.
+    dx2d = 1000.0 + 10.0 * lat2d
+    dy2d = 2000.0 + 10.0 * lon2d
     data = xr.Dataset(
         {
             "thetao": (("time", "lev", "y", "x"), np.ones((nt, 1, ny, nx))),
@@ -196,6 +208,8 @@ def test_tripolar_om4_canonicalization_preserves_writer_geometry(tmp_path):
             "x": x,
             "lat": (("y", "x"), lat2d),
             "lon": (("y", "x"), lon2d),
+            "dx": (("y", "x"), dx2d),
+            "dy": (("y", "x"), dy2d),
         },
     )
     means = data[["thetao", "hfds"]].mean("time")
@@ -233,6 +247,8 @@ def test_tripolar_om4_canonicalization_preserves_writer_geometry(tmp_path):
     out = xr.open_zarr(writer.pred_path)
     np.testing.assert_allclose(out["lat"].values, lat2d)
     np.testing.assert_allclose(out["lon"].values, lon2d)
+    np.testing.assert_allclose(out["dx"].values, dx2d)
+    np.testing.assert_allclose(out["dy"].values, dy2d)
 
 
 def test_writer_appends_along_time(tmp_path):
