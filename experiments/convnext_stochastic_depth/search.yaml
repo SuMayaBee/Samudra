@@ -1,0 +1,69 @@
+# SPDX-FileCopyrightText: 2026 Samudra Authors
+#
+# SPDX-License-Identifier: CC0-1.0
+
+# yaml-language-server: $schema=../../src/samudra/configs/schemas/SearchConfig.json
+
+name: convnext-stochastic-depth
+
+algorithm:
+  type: successive_halving
+  rungs: [1, 3, 6]
+  promotion_fraction: 0.5
+  minimum_promoted: 2
+
+objective: { metric: validation_loss, mode: min }
+metrics: [validation_loss, train_loss, best_validation_loss]
+
+executor: !include local.yaml
+
+candidates:
+  - name: control
+    fixed: true
+    config: samudra_om4_v2/train.yaml
+    args:
+      - &data_arg --data=@data/om4_demo.yaml
+      - &shortcut_arg --model.unet.drop_path_rate=0.0
+      - --model.unet.stochastic_depth_rate=0.0
+      - &batch_arg --batch_size=2
+      - &accumulation_arg --gradient_accumulation_steps=2
+
+  - name: constant-0.1
+    config: samudra_om4_v2/train.yaml
+    args:
+      - *data_arg
+      - *shortcut_arg
+      - *batch_arg
+      - *accumulation_arg
+      - --model.unet.stochastic_depth_rate=0.1
+      - --model.unet.stochastic_depth_schedule=constant
+
+  - name: linear-0.1
+    config: samudra_om4_v2/train.yaml
+    args:
+      - *data_arg
+      - *shortcut_arg
+      - *batch_arg
+      - *accumulation_arg
+      - --model.unet.stochastic_depth_rate=0.1
+      - --model.unet.stochastic_depth_schedule=linear
+
+  - name: constant-0.2
+    config: samudra_om4_v2/train.yaml
+    args:
+      - *data_arg
+      - *shortcut_arg
+      - *batch_arg
+      - *accumulation_arg
+      - --model.unet.stochastic_depth_rate=0.2
+      - --model.unet.stochastic_depth_schedule=constant
+
+  - name: linear-0.2
+    config: samudra_om4_v2/train.yaml
+    args:
+      - *data_arg
+      - *shortcut_arg
+      - *batch_arg
+      - *accumulation_arg
+      - --model.unet.stochastic_depth_rate=0.2
+      - --model.unet.stochastic_depth_schedule=linear
