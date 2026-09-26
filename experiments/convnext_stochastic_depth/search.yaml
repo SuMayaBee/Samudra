@@ -8,7 +8,7 @@ name: convnext-stochastic-depth
 
 algorithm:
   type: successive_halving
-  rungs: [1, 2, 4]
+  rungs: [1, 2, 3]
   promotion_fraction: 0.5
   minimum_promoted: 2
 

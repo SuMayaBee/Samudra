@@ -20,7 +20,7 @@ Kaggle T4 session, not a final model-quality result.
 
 Successive halving trains every stochastic-depth candidate for one epoch,
 promotes the strongest candidates to two epochs, and retains at least two
-through the four-epoch rung. The fixed control runs for the full four epochs.
+through the three-epoch rung. The fixed control runs for the full three epochs.
 
 Run locally with:
 
