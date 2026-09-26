@@ -1239,10 +1239,6 @@ class Trainer:
                     f"Epoch validation loss ({v_loss:.3f}) is lower than "
                     f"previous best validation loss ({self.best_val_loss:.3f})."
                 )
-                logger.info(
-                    "Saving lowest validation loss checkpoint to "
-                    f"{self.ckpt_paths.best_validation_checkpoint_path}"
-                )
                 self.best_val_loss = v_loss
                 is_best_val_loss = True  # wait until inference error is updated
             if inf_loss is not None and (inf_loss <= self.best_inf_loss):
@@ -1250,15 +1246,20 @@ class Trainer:
                     f"Epoch inference error ({inf_loss:.3f}) is lower than "
                     f"previous best inference error ({self.best_inf_loss:.3f})."
                 )
-                logger.info(
-                    "Saving lowest inference error checkpoint to "
-                    f"{self.ckpt_paths.best_inference_checkpoint_path}"
-                )
                 self.best_inf_loss = inf_loss
-                self.save_checkpoint(
-                    epoch, self.ckpt_paths.best_inference_checkpoint_path
+                if self.search_run is None:
+                    logger.info(
+                        "Saving lowest inference error checkpoint to "
+                        f"{self.ckpt_paths.best_inference_checkpoint_path}"
+                    )
+                    self.save_checkpoint(
+                        epoch, self.ckpt_paths.best_inference_checkpoint_path
+                    )
+            if is_best_val_loss and self.search_run is None:
+                logger.info(
+                    "Saving lowest validation loss checkpoint to "
+                    f"{self.ckpt_paths.best_validation_checkpoint_path}"
                 )
-            if is_best_val_loss:
                 self.save_checkpoint(
                     epoch, self.ckpt_paths.best_validation_checkpoint_path
                 )
@@ -1267,6 +1268,11 @@ class Trainer:
             f"Saving latest checkpoint to {self.ckpt_paths.latest_checkpoint_path}"
         )
         self.save_checkpoint(epoch, self.ckpt_paths.latest_checkpoint_path)
+        # Successive halving promotes candidates from the latest checkpoint.
+        # Avoid retaining redundant best, per-epoch, and EMA copies for each
+        # short-lived search run, which can otherwise exhaust local disk.
+        if self.search_run is not None:
+            return
         if epoch > 0 and epoch % self.save_freq == 0:
             path = self.ckpt_paths.latest_checkpoint_path_with_epoch(epoch)
             logger.info(f"Saving per-epoch checkpoint to {path}")

@@ -5,6 +5,7 @@
 import json
 import logging
 import tempfile
+from contextlib import nullcontext
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
@@ -153,6 +154,36 @@ def test_search_training_persists_full_epoch_history(trainer_pair: TrainPair):
     stages = [event["stage"] for event in worker_status["history"]]
     assert stages.count("first_batch") == 1
     assert stages.count("optimizer_step") == 1
+
+
+def test_search_training_only_saves_promotion_checkpoint(monkeypatch, tmp_path):
+    trainer = cast(Any, object.__new__(Trainer))
+    trainer.best_val_loss = float("inf")
+    trainer.best_inf_loss = float("inf")
+    trainer.search_run = object()
+    trainer.save_freq = 1
+    trainer.ckpt_paths = SimpleNamespace(
+        best_validation_checkpoint_path=tmp_path / "best_validation_ckpt.pt",
+        best_inference_checkpoint_path=tmp_path / "best_inference_ckpt.pt",
+        latest_checkpoint_path=tmp_path / "ckpt.pt",
+        ema_checkpoint_path=tmp_path / "ema_ckpt.pt",
+        latest_checkpoint_path_with_epoch=lambda epoch: tmp_path / f"ckpt_{epoch}.pt",
+    )
+    saved = []
+    monkeypatch.setattr(trainer, "_test_context", nullcontext)
+    monkeypatch.setattr(
+        trainer,
+        "save_checkpoint",
+        lambda epoch, path, for_inference=False: saved.append(
+            (epoch, path, for_inference)
+        ),
+    )
+
+    trainer.save_all_checkpoints(epoch=1, v_loss=0.5, inf_loss=0.7)
+
+    assert saved == [(1, trainer.ckpt_paths.latest_checkpoint_path, False)]
+    assert trainer.best_val_loss == 0.5
+    assert trainer.best_inf_loss == 0.7
 
 
 @pytest.mark.parametrize("backend", ["cpu"], indirect=True)
