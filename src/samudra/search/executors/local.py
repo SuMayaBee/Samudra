@@ -5,6 +5,7 @@
 """Synchronous local search execution."""
 
 import gc
+from pathlib import Path
 from typing import Any
 
 import torch
@@ -14,6 +15,8 @@ from samudra.utils.multiton import MultitonScope
 
 
 class LocalExecutor(Executor):
+    _promotion_checkpoint = Path("saved_nets/ckpt.pt")
+
     def submit_anchors(self, state: dict[str, Any]) -> None:
         candidates = state["anchors"]["candidates"]
         state["anchors"]["job_id"] = "local"
@@ -39,6 +42,16 @@ class LocalExecutor(Executor):
         try:
             with MultitonScope():
                 self.search.train_task(rung, task, anchor=anchor)
+            # A promoted local task has fully consumed its parent checkpoint.
+            # Removing that copy bounds notebook disk use while preserving the
+            # new checkpoint, metrics, provenance, and scheduler state.
+            if rung > 0 and not anchor:
+                state = self.search.read_state()
+                name = state["rungs"][rung]["candidates"][task]
+                parent = (
+                    self.search.output_dir(name, rung - 1) / self._promotion_checkpoint
+                )
+                parent.unlink(missing_ok=True)
         finally:
             gc.collect()
             if torch.cuda.is_available():

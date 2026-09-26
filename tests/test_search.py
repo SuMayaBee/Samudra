@@ -643,6 +643,23 @@ def test_local_executor_runs_tasks_then_advances(tmp_path, monkeypatch):
     ]
 
 
+def test_local_executor_removes_consumed_parent_checkpoint(tmp_path, monkeypatch):
+    search = config(tmp_path).build()
+    search.search_dir.mkdir(parents=True)
+    state = search_state(search, status="running")
+    state["rungs"][1]["candidates"] = ["a"]
+    search.write_state(state)
+    parent = search.output_dir("a", 0) / "saved_nets/ckpt.pt"
+    parent.parent.mkdir(parents=True)
+    parent.touch()
+    monkeypatch.setattr(search, "train_task", lambda rung, task, anchor: None)
+    assert isinstance(search.executor, LocalExecutor)
+
+    search.executor._run_task(1, 0, anchor=False)
+
+    assert not parent.exists()
+
+
 def test_advance_retry_finishes_publication_and_submission(tmp_path, monkeypatch):
     search = config(tmp_path).build()
     search.search_dir.mkdir(parents=True)
