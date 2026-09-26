@@ -28,6 +28,9 @@ Run locally with:
 python -m samudra.search experiments/convnext_stochastic_depth/search.yaml
 ```
 
+The Kaggle configuration uses the first available CUDA GPU explicitly. The
+local search executor runs candidates sequentially and does not use DDP.
+
 The search writes resolved configs, checkpoints, metrics, provenance, and its
 generated comparison report beneath `.LOCAL/searches/`.
 
